@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "goher",
+    "slug": "goher",
+    "version": "1.0.0",
+    "newArchEnabled": true,
+    "orientation": "portrait",
+    "icon": "./assets/images/GOHER_ICON.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/GOHER.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "goher.android"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/GOHER.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "goher.android"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/GOHER_ICON.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow this app to access your location at all times.",
+          "locationWhenInUsePermission": "Allow this app to access your location while using the app."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "stripePublishableKey": "pk_test_51Q3K7pEQcUe0vNSwtVEOFWzkisc8NqDCyBoz3u8JLCXsI4iOvUgZ4rCtqEX65rFbM69K1HpUmY58leUAcdIXw1yp00G7HNTt5w",
+      "eas": {
+        "projectId": "2f60cc09-f14f-49cb-b050-754104230022"
+      }
+    }
+  }
+}
