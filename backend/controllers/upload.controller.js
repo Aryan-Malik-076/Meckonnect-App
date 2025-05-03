@@ -1,4 +1,4 @@
-// File: controllers/driverDocumentsController.js
+const mongoose = require('mongoose');
 const DriverDocuments = require('../models/document.model');
 const User = require('../models/user.model');
 const { s3, BUCKET_NAME } = require('../lib/aws');
@@ -48,13 +48,37 @@ const uploadToS3 = async (file) => {
 
 exports.uploadDocuments = async (req, res) => {
   try {
-    const userId = req.body.user_id; // Assuming user ID is available from auth middleware
+    const userId = req.body.user_id; // Assuming user ID is sent in the request body
+
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id is required',
+      });
+    }
+
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user_id format',
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
 
     // Check if files are present
     if (!req.files) {
       return res.status(400).json({
         success: false,
-        message: 'No files uploaded'
+        message: 'No files uploaded',
       });
     }
     
@@ -93,7 +117,7 @@ exports.uploadDocuments = async (req, res) => {
         drivingLicenseFront: { url: drivingLicenseFrontUrl },
         drivingLicenseBack: { url: drivingLicenseBackUrl },
         idCardFront: { url: idCardFrontUrl },
-        idCardBack: { url: idCardBackUrl }
+        idCardBack: { url: idCardBackUrl },
       });
     }
     
@@ -101,21 +125,27 @@ exports.uploadDocuments = async (req, res) => {
     
     // Update user status to driver-status-2
     await User.findByIdAndUpdate(userId, { 
-      role: 'driver-status-2' 
+      role: 'driver-status-2',
     });
     
     return res.status(200).json({
       success: true,
       message: 'Documents uploaded successfully',
-      data: driverDocs
+      data: driverDocs,
     });
     
   } catch (error) {
     console.error('Error in document upload:', error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user_id format',
+      });
+    }
     return res.status(500).json({
       success: false,
       message: 'Error uploading documents',
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -127,19 +157,19 @@ exports.handleFileUpload = (req, res, next) => {
     { name: 'drivingLicenseFront', maxCount: 1 },
     { name: 'drivingLicenseBack', maxCount: 1 },
     { name: 'idCardFront', maxCount: 1 },
-    { name: 'idCardBack', maxCount: 1 }
-  ])(req, res, function(err) {
+    { name: 'idCardBack', maxCount: 1 },
+  ])(req, res, function (err) {
     if (err instanceof multer.MulterError) {
       return res.status(400).json({
         success: false,
         message: 'File upload error',
-        error: err.message
+        error: err.message,
       });
     } else if (err) {
       return res.status(500).json({
         success: false,
         message: 'Server error during file upload',
-        error: err.message
+        error: err.message,
       });
     }
     next();
