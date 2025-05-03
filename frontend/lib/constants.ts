@@ -1,6 +1,6 @@
-export const DEFAULT_URL = 'http://192.168.57.108:5001';
+export const DEFAULT_URL = 'http://192.168.255.108:5001';
 // export const DEFAULT_URL2 = 'http://10.0.2.2:5001';
-export const DEFAULT_URL_3 = 'http://192.168.57.108:3000';
+export const DEFAULT_URL_3 = 'http://192.168.255.108:3000';
 
 
 export const menuItems = [

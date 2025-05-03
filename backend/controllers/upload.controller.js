@@ -1,0 +1,147 @@
+// File: controllers/driverDocumentsController.js
+const DriverDocuments = require('../models/document.model');
+const User = require('../models/user.model');
+const { s3, BUCKET_NAME } = require('../lib/aws');
+const multer = require('multer');
+const multerS3 = require('multer-s3');
+const path = require('path');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
+
+// Configure multer for temporary storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = './uploads';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+
+const upload = multer({ storage: storage });
+
+// Helper function to upload file to S3
+const uploadToS3 = async (file) => {
+  const fileStream = fs.createReadStream(file.path);
+  
+  const params = {
+    Bucket: BUCKET_NAME,
+    Key: `driver-documents/${uuidv4()}-${path.basename(file.filename)}`,
+    Body: fileStream,
+    ContentType: file.mimetype,
+  };
+  
+  try {
+    const uploadResult = await s3.upload(params).promise();
+    // Delete the temporary file
+    fs.unlinkSync(file.path);
+    return uploadResult.Location;
+  } catch (error) {
+    console.error('Error uploading to S3:', error);
+    throw error;
+  }
+};
+
+exports.uploadDocuments = async (req, res) => {
+  try {
+    const userId = req.body.user_id; // Assuming user ID is available from auth middleware
+
+    // Check if files are present
+    if (!req.files) {
+      return res.status(400).json({
+        success: false,
+        message: 'No files uploaded'
+      });
+    }
+    
+    // Extract files
+    const { 
+      vehicleReg, 
+      drivingLicenseFront, 
+      drivingLicenseBack, 
+      idCardFront, 
+      idCardBack 
+    } = req.files;
+    
+    // Upload each file to S3
+    const vehicleRegUrl = vehicleReg ? await uploadToS3(vehicleReg[0]) : null;
+    const drivingLicenseFrontUrl = drivingLicenseFront ? await uploadToS3(drivingLicenseFront[0]) : null;
+    const drivingLicenseBackUrl = drivingLicenseBack ? await uploadToS3(drivingLicenseBack[0]) : null;
+    const idCardFrontUrl = idCardFront ? await uploadToS3(idCardFront[0]) : null;
+    const idCardBackUrl = idCardBack ? await uploadToS3(idCardBack[0]) : null;
+    
+    // Find or create driver documents
+    let driverDocs = await DriverDocuments.findOne({ userId });
+    
+    if (driverDocs) {
+      // Update existing document
+      driverDocs.vehicleReg.url = vehicleRegUrl || driverDocs.vehicleReg.url;
+      driverDocs.drivingLicenseFront.url = drivingLicenseFrontUrl || driverDocs.drivingLicenseFront.url;
+      driverDocs.drivingLicenseBack.url = drivingLicenseBackUrl || driverDocs.drivingLicenseBack.url;
+      driverDocs.idCardFront.url = idCardFrontUrl || driverDocs.idCardFront.url;
+      driverDocs.idCardBack.url = idCardBackUrl || driverDocs.idCardBack.url;
+      driverDocs.updatedAt = Date.now();
+    } else {
+      // Create new document
+      driverDocs = new DriverDocuments({
+        userId,
+        vehicleReg: { url: vehicleRegUrl },
+        drivingLicenseFront: { url: drivingLicenseFrontUrl },
+        drivingLicenseBack: { url: drivingLicenseBackUrl },
+        idCardFront: { url: idCardFrontUrl },
+        idCardBack: { url: idCardBackUrl }
+      });
+    }
+    
+    await driverDocs.save();
+    
+    // Update user status to driver-status-2
+    await User.findByIdAndUpdate(userId, { 
+      role: 'driver-status-2' 
+    });
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Documents uploaded successfully',
+      data: driverDocs
+    });
+    
+  } catch (error) {
+    console.error('Error in document upload:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error uploading documents',
+      error: error.message
+    });
+  }
+};
+
+// Helper middleware for handling file uploads
+exports.handleFileUpload = (req, res, next) => {
+  upload.fields([
+    { name: 'vehicleReg', maxCount: 1 },
+    { name: 'drivingLicenseFront', maxCount: 1 },
+    { name: 'drivingLicenseBack', maxCount: 1 },
+    { name: 'idCardFront', maxCount: 1 },
+    { name: 'idCardBack', maxCount: 1 }
+  ])(req, res, function(err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({
+        success: false,
+        message: 'File upload error',
+        error: err.message
+      });
+    } else if (err) {
+      return res.status(500).json({
+        success: false,
+        message: 'Server error during file upload',
+        error: err.message
+      });
+    }
+    next();
+  });
+};
