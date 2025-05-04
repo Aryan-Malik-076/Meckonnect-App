@@ -1,16 +1,39 @@
-const jwt = require('jsonwebtoken');
+const express = require('express');
+const router = express.Router();
+const driverDocumentsController = require('../controllers/upload.controller');
+const authMiddleware = require('../middleware/auth'); // Add this
 
-const authMiddleware = (req, res, next) => {
-  const token = req.header('x-auth-token');
-  if (!token) return res.status(401).json({ success: false, message: 'No token, authorization denied' });
+// Route for uploading driver documents
+router.post(
+  '/documents/upload',
+  authMiddleware, // Add authentication middleware
+  driverDocumentsController.handleFileUpload,
+  driverDocumentsController.uploadDocuments
+);
 
+// Route to get driver documents
+router.get('/documents', async (req, res) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.userId;
-    next();
-  } catch (err) {
-    res.status(401).json({ success: false, message: 'Token is not valid' });
-  }
-};
+    const documents = await DriverDocuments.find(); // Fixed: findMany -> find
 
-module.exports = authMiddleware;
+    if (!documents || documents.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No documents found',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: documents,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching documents',
+      error: error.message,
+    });
+  }
+});
+
+module.exports = router;

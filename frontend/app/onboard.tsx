@@ -20,10 +20,9 @@ const OnBoardScreen = () => {
             source={require("../assets/images/w5.png")}
           />
           <View style={{ gap: 0 }}>
-            <Text style={style.heading}>Welcome to GoHer!</Text>
+            <Text style={style.heading}>Welcome to MecKonnect!</Text>
             <Text style={style.description}>
-              Your ride, your way. A car service crafted for the modern woman,
-              putting comfort and safety first.
+            Your vehicle, your way. A modern mechanic service hub committed to safety, reliability, and convenience for all.
             </Text>
           </View>
         </View>
